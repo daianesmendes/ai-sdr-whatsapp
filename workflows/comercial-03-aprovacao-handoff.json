@@ -1,0 +1,610 @@
+{
+  "name": "Comercial · Aprovação & Handoff - dev",
+  "nodes": [
+    {
+      "parameters": {
+        "events": "worklfowCall"
+      },
+      "id": "6eeea77e-19d1-4e50-8d26-e0b7b2694400",
+      "name": "Recebe msg do grupo",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        8336,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Interpreta a interação da SDR no grupo (comando de texto: aprovar / reprovar / parar).\nconst b = $json.body ?? $json;\nconst raw = (b.text && b.text.message) ? b.text.message : (b.body || '');\nconst txt = String(raw).trim().toLowerCase();\nlet acao = '';\nif (txt.startsWith('aprovar')) acao = 'aprovar';\nelse if (txt.startsWith('reprovar')) acao = 'reprovar';\nelse if (txt.startsWith('parar') || txt.includes('ia parar')) acao = 'parar';\nconst quotedId = b.quotedId || '';\nreturn [{ json: { acao, quotedId, texto: raw } }];"
+      },
+      "id": "a4072ae6-d125-4b3b-9d74-261689b1c209",
+      "name": "Interpreta ação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8560,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT zapi_instance, zapi_token, zapi_client_token FROM crm_user WHERE user_id = '000000';",
+        "options": {}
+      },
+      "id": "22c5afc0-d354-4b5d-8a59-f735da933984",
+      "name": "Z-API do remetente (CEO)",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        8784,
+        2752
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Interpreta ação').first().json.acao }}",
+                    "rightValue": "aprovar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "997cb51f-c10d-4670-b0ef-6ef23ba045f6"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Interpreta ação').first().json.acao }}",
+                    "rightValue": "reprovar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "63155c19-fee7-4a4b-83db-0c5a05a40973"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Interpreta ação').first().json.acao }}",
+                    "rightValue": "parar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c7c9589e-3e20-41f5-965d-ef697e8d0162"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "de95fa42-34e5-4444-8f27-8785aa11846e",
+      "name": "Ação?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        9008,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT telefone, deal_id, resposta_sugerida\n  FROM aprovacao_pendente\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status = 'pendente'\n ORDER BY created_at DESC\n LIMIT 1;",
+        "options": {}
+      },
+      "id": "97edd795-fb1f-4aa0-b194-3cb37f6dd8b7",
+      "name": "APROVAR: pega resposta",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9296,
+        2384
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nVALUES ('Comercial', '{{ $json.telefone }}', '000000', '{{ $('Interpreta ação').first().json.deal }}', 'agente', '{{ ($json.resposta_sugerida || '').replace(/'/g, \"''\") }}', NULL);",
+        "options": {}
+      },
+      "id": "1e999d4e-f531-46bc-840a-ac5af7de697b",
+      "name": "APROVAR: insere na WHATSAPP",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        10896,
+        2336
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE aprovacao_pendente SET status = 'concluido'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}';\nUPDATE conversa_status SET status = 'ativa', updated_at = now()\n WHERE telefone = '{{ $('APROVAR: pega resposta').first().json.telefone }}';",
+        "options": {}
+      },
+      "id": "62749e44-c7b7-47c4-be5c-97cf960748c3",
+      "name": "APROVAR: fecha pendência",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9984,
+        2384
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE aprovacao_pendente SET status = 'reprovado_aguardando_texto'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status = 'pendente';",
+        "options": {}
+      },
+      "id": "a6b3fcd3-4fb8-4619-a6d3-572a29abb17b",
+      "name": "REPROVAR: aguarda texto da SDR",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9296,
+        2624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE conversa_status SET status = 'handoff', updated_at = now()\n WHERE telefone = (SELECT telefone FROM aprovacao_pendente WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' LIMIT 1);\nUPDATE aprovacao_pendente SET status = 'concluido'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status IN ('pendente','reprovado_aguardando_texto');",
+        "options": {}
+      },
+      "id": "d1be1740-8187-49ea-a14e-868de4878486",
+      "name": "PARAR: handoff (humano assume)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9296,
+        2864
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, telefone, deal_id\n  FROM aprovacao_pendente\n WHERE status = 'reprovado_aguardando_texto'\n   AND ('{{ $('Interpreta ação').first().json.quotedId }}' = '' OR group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}')\n ORDER BY created_at DESC\n LIMIT 1;",
+        "options": {}
+      },
+      "id": "72bf1ef0-d521-4a62-b79d-889381b0627b",
+      "name": "TEXTO: acha pendência p/ correção",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9296,
+        3104
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nVALUES ('Comercial', '{{ $json.telefone }}', '000000', '{{ $json.deal_id }}', 'agente', '{{ ($('Interpreta ação').first().json.texto || '').replace(/'/g, \"''\") }}', NULL);",
+        "options": {}
+      },
+      "id": "f5648e11-96d1-484e-b114-bb1b44ed5a35",
+      "name": "TEXTO: insere na WHATSAPP",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        10896,
+        2544
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE aprovacao_pendente SET status = 'concluido'\n WHERE id = {{ $('TEXTO: acha pendência p/ correção').first().json.id }};\nUPDATE conversa_status SET status = 'ativa', updated_at = now()\n WHERE deal_id = '{{ $('TEXTO: acha pendência p/ correção').first().json.deal_id }}';",
+        "options": {}
+      },
+      "id": "ef0ca807-e1e4-4705-940f-8e059f7923e5",
+      "name": "TEXTO: fecha pendência",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9984,
+        3104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 1152,
+        "width": 1984,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        8240,
+        2240
+      ],
+      "typeVersion": 1,
+      "id": "c25c0bf6-572e-4802-a267-639a450fecf0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://waha.internal.local/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $json.telefone }}@c.us\",\n  \"text\": {{ JSON.stringify($json.resposta_sugerida) }},\n  \"session\": \"waha-session-001\"\n}",
+        "options": {}
+      },
+      "id": "5586c160-83d1-4071-8d05-cb02fbb3fe0a",
+      "name": "APROVAR: envia ao lead (Z-API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        9520,
+        2384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://waha.internal.local/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $json.telefone }}@c.us\",\n  \"text\": {{ JSON.stringify($('Interpreta ação').first().json.texto) }},\n  \"session\": \"waha-session-001\"\n}",
+        "options": {}
+      },
+      "id": "16a35b41-01e6-440f-b47a-b29a8ced2c4c",
+      "name": "TEXTO: envia ao lead (Z-API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        9520,
+        3104
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agente_memoria (telefone, deal_id, role, conteudo)\nVALUES ('{{ $('APROVAR: pega resposta').first().json.telefone }}',\n        '{{ $('APROVAR: pega resposta').first().json.deal_id }}',\n        'assistant',\n        '{{ ($('APROVAR: pega resposta').first().json.resposta_sugerida || '').replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "id": "c3f592b9-97dd-4280-9f82-b700d7b08ce6",
+      "name": "Memória: grava resposta do agente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9744,
+        2384
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agente_memoria (telefone, deal_id, role, conteudo)\nVALUES ('{{ $('TEXTO: acha pendência p/ correção').first().json.telefone }}',\n        '{{ $('TEXTO: acha pendência p/ correção').first().json.deal_id }}',\n        'assistant',\n        '{{ ($('Interpreta ação').first().json.texto || '').replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "id": "705c50fb-23ce-402f-a615-46f02b4cb6b1",
+      "name": "Memória: grava resposta correta",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        9744,
+        3104
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## ✅ Aprovação & Handoff (chamado pelo roteador do webhook)\n\nRecebe a interação da SDR no grupo:\n- **Aprovar** → envia a resposta sugerida ao lead.\n- **Reprovar** → marca 'aguardando texto'; a PRÓXIMA mensagem que a SDR digitar no grupo vira a resposta enviada ao lead.\n- **IA parar de responder** → conversa vira 'handoff' (humano assume; agente não responde mais).\n\n",
+        "height": 320,
+        "width": 320,
+        "color": "#C2919E"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        7856,
+        2640
+      ],
+      "typeVersion": 1,
+      "id": "6a774dbc-295a-4fe6-9a1f-5c005a23c804",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {
+    "Recebe msg do grupo": [
+      {
+        "json": {
+          "event": "message",
+          "session": "waha-session-001",
+          "body": {
+            "phone": "120363000000000000@g.us",
+            "chatId": "120363000000000000@g.us",
+            "isGroup": true,
+            "participantPhone": "550000000000",
+            "senderName": "Usuário Teste",
+            "fromMe": false,
+            "type": "ReceivedCallback",
+            "isStatusReply": false,
+            "messageId": "REDACTED",
+            "quotedId": "REDACTED",
+            "text": {
+              "message": "aprovar"
+            }
+          },
+          "group_aprovacao": "120363000000000000@g.us"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Recebe msg do grupo": {
+      "main": [
+        [
+          {
+            "node": "Interpreta ação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpreta ação": {
+      "main": [
+        [
+          {
+            "node": "Z-API do remetente (CEO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Z-API do remetente (CEO)": {
+      "main": [
+        [
+          {
+            "node": "Ação?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ação?": {
+      "main": [
+        [
+          {
+            "node": "APROVAR: pega resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "REPROVAR: aguarda texto da SDR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PARAR: handoff (humano assume)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TEXTO: acha pendência p/ correção",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APROVAR: pega resposta": {
+      "main": [
+        [
+          {
+            "node": "APROVAR: envia ao lead (Z-API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEXTO: acha pendência p/ correção": {
+      "main": [
+        [
+          {
+            "node": "TEXTO: envia ao lead (Z-API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APROVAR: envia ao lead (Z-API)": {
+      "main": [
+        [
+          {
+            "node": "Memória: grava resposta do agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEXTO: envia ao lead (Z-API)": {
+      "main": [
+        [
+          {
+            "node": "Memória: grava resposta correta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória: grava resposta do agente": {
+      "main": [
+        [
+          {
+            "node": "APROVAR: fecha pendência",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória: grava resposta correta": {
+      "main": [
+        [
+          {
+            "node": "TEXTO: fecha pendência",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9ae67dff-dfd4-4a1e-8b06-36a61547aeb6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "vvq1R5ySP26TIllD",
+  "tags": []
+}

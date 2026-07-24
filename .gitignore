@@ -1,0 +1,6 @@
+# Nunca versionar credenciais ou exports crus do n8n
+.env
+*.env
+credentials*.json
+**/*- dev.json
+**/*secret*

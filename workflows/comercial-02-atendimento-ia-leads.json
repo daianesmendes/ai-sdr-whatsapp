@@ -1,0 +1,2090 @@
+{
+  "name": "Comercial · Atendimento IA Leads - dev",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-grp",
+              "name": "group_aprovacao",
+              "value": "120363000000000000@g.us",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f9f084b4-3965-418a-8e1e-eaa98301f984",
+      "name": "Config (grupo de aprovação)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        45984,
+        11136
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "g1",
+              "leftValue": "={{ $json.body.isGroup }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "g2",
+              "leftValue": "={{ $json.body.phone }}",
+              "rightValue": "={{ $json.group_aprovacao }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c788d789-010e-4079-a34b-6e341631b29b",
+              "leftValue": "={{ $json.body.participantPhone }}",
+              "rightValue": "550000000001",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "987a03b7-40b2-4f84-adb1-26355c3c6cb4",
+      "name": "É do grupo de aprovação?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        46224,
+        11136
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "vvq1R5ySP26TIllD",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/vvq1R5ySP26TIllD",
+          "cachedResultName": "Comercial · Aprovação & Handoff - dev"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "ae1938c5-5612-48c2-b6ad-9a5a2578d441",
+      "name": "Chama Aprovação & Handoff",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        46480,
+        11040
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.body.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "v2",
+              "leftValue": "={{ $json.body.type }}",
+              "rightValue": "ReceivedCallback",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "v3",
+              "leftValue": "={{ $json.body.isStatusReply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9a1d5dc8-7d88-4262-aad8-9e94ecfe9781",
+      "name": "É mensagem válida de lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        46480,
+        11232
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "telefone",
+              "value": "={{ $json.body.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "nome",
+              "value": "={{ $json.body.senderName }}",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "mensagem",
+              "value": "={{ $json.body.text?.message || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "tipo",
+              "value": "={{ $json.body.type }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "messageId",
+              "value": "={{ $json.body.messageId }}",
+              "type": "string"
+            },
+            {
+              "id": "12d4e12f-11a4-4b59-9150-d74c1413fa7c",
+              "name": "chatIdLead",
+              "value": "={{ $json.body.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc9b92b9-0e15-4946-a1e4-87fb559d5aba",
+      "name": "Extrai dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        46736,
+        11216
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1\n       w.zapi_instance, w.zapi_token, w.zapi_client_token,\n       la.deal_id, la.lead_nome, la.vendedor_nome, la.ja_contatado\n  FROM (SELECT zapi_instance, zapi_token, zapi_client_token FROM crm_user WHERE user_id = '000000') w\n OUTER APPLY (\n       SELECT TOP 1 a.id AS deal_id, d.first_name AS lead_nome, b.first_name AS vendedor_nome,\n              CASE WHEN EXISTS (SELECT 1 FROM whatsapp_deal z WHERE z.deal_id = a.id\n                                 AND z.chave IN ('pos_apresentacao','reaquecer','reaquecer_pacoca')) THEN 1 ELSE 0 END AS ja_contatado\n         FROM crm_deal a\n        INNER JOIN crm_person d ON a.person_id = d.id\n        INNER JOIN crm_user b ON a.user_id = b.user_id\n        WHERE d.cellphone1 = '{{ $json.telefone }}'\n        ORDER BY a.add_time DESC\n ) la;",
+        "options": {}
+      },
+      "id": "83e1b0ce-b06e-4bf6-b7c3-3969b1e1834b",
+      "name": "Valida lead + Z-API remetente",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        46976,
+        11216
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "l1",
+              "leftValue": "={{ $json.deal_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "l2",
+              "leftValue": "={{ $json.ja_contatado }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1ca68461-b556-4825-9da3-614607cb0783",
+      "name": "É lead do fluxo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        47216,
+        11216
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "bufAntigo",
+        "key": "=buf:{{ $('Extrai dados').item.json.telefone }}",
+        "options": {}
+      },
+      "id": "e45d41ce-c0d8-48b6-8810-11376ce695e4",
+      "name": "Redis: lê buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        48720,
+        11200
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "bufNovo",
+              "value": "={{ ($json.bufAntigo ? $json.bufAntigo + '\\n' : '') + $('Normaliza mensagem').item.json.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6b788278-a26b-4c42-9083-648b531ca30b",
+      "name": "Monta buffer",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48976,
+        11200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=buf:{{ $('Extrai dados').item.json.telefone }}",
+        "value": "={{ $json.bufNovo }}",
+        "expire": true,
+        "ttl": 120
+      },
+      "id": "5200836b-0066-4a94-a104-8df2b98bb426",
+      "name": "Redis: grava buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        49232,
+        11200
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=seq:{{ $('Extrai dados').item.json.telefone }}",
+        "value": "={{ $('Extrai dados').item.json.messageId }}",
+        "expire": true,
+        "ttl": 300
+      },
+      "id": "3370422a-c9e9-4531-9869-ef4143c7b356",
+      "name": "Redis: marca último msgId",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        49488,
+        11200
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id": "74e966a3-11fe-42a6-96ed-0a607ace9116",
+      "name": "Aguarda 1 min (buffer)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        49744,
+        11200
+      ],
+      "webhookId": "wait-buffer-1min"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "ultimoId",
+        "key": "=seq:{{ $('Extrai dados').item.json.telefone }}",
+        "options": {}
+      },
+      "id": "a02f528b-384f-4b55-a4cc-68b8e16a2284",
+      "name": "Redis: lê último msgId",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        49984,
+        11200
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "s1",
+              "leftValue": "={{ $json.ultimoId }}",
+              "rightValue": "={{ $('Extrai dados').item.json.messageId }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "27a47251-2cc0-4275-89cc-8bf67b969405",
+      "name": "Sou a última mensagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        50224,
+        11200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8a9e07e6-6a1e-4c4a-85d8-438066880355",
+      "name": "Chegou msg nova — aborta",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        50480,
+        11296
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "textoCompleto",
+        "key": "=buf:{{ $('Extrai dados').item.json.telefone }}",
+        "options": {}
+      },
+      "id": "da8472fa-fe6b-4332-8600-641b5a43dfc2",
+      "name": "Redis: lê texto completo",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        50480,
+        11104
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=buf:{{ $('Extrai dados').item.json.telefone }}"
+      },
+      "id": "606100b7-93be-4483-bf31-945d872c2118",
+      "name": "Redis: limpa buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        50736,
+        11104
+      ],
+      "credentials": {
+        "redis": {
+          "id": "CRED_REDIS",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE((SELECT status FROM conversa_status WHERE telefone = '{{ $('Extrai dados').item.json.telefone }}'), 'ativa') AS status;",
+        "options": {}
+      },
+      "id": "8fcd6fd2-d6d8-490f-9f27-809feb62c8e1",
+      "name": "Lê status da conversa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        50992,
+        11104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "h1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "handoff",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "261dba72-2147-4fcc-a7f6-8c7410ab8090",
+      "name": "Está em handoff?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        51248,
+        11104
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b66246b5-9172-4a5f-81aa-99917297af66",
+      "name": "Em handoff — humano cuida",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        51488,
+        11008
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT role, conteudo FROM agente_memoria\n WHERE telefone = '{{ $('Extrai dados').item.json.telefone }}'\n ORDER BY created_at DESC LIMIT 20;",
+        "options": {}
+      },
+      "id": "d19f8970-74e0-42bf-a4cc-a7509d44bd86",
+      "name": "Memória: lê histórico",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        51488,
+        11200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $(\"Memória: lê histórico\").all().map(i => i.json);\nconst ordered = rows.slice().reverse();\nconst historico = ordered.map(r => (r.role === 'user' ? 'Lead: ' : 'Assistente: ') + (r.conteudo || '')).join('\\n');\nconst texto = $(\"Redis: lê texto completo\").first().json.textoCompleto || $(\"Monta buffer\").first().json.bufNovo || '';\nconst leadNome = $(\"Valida lead + Z-API remetente\").first().json.lead_nome || '';\nconst vendedor = $(\"Valida lead + Z-API remetente\").first().json.vendedor_nome || '';\nconst promptUsuario = `Dados do lead: nome=${leadNome}; vendedor responsável=${vendedor}.\\n\\nHistórico da conversa:\\n${historico || '(sem histórico ainda)'}\\n\\nNova mensagem do lead:\\n${texto}`;\nreturn [{ json: { promptUsuario } }];"
+      },
+      "id": "6d9d2722-5ef6-4552-8077-945dcd7d443d",
+      "name": "Formata contexto p/ IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        51728,
+        11200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\n\n// Com JSON Schema, a resposta vem como OBJETO aqui:\nlet node = j.output?.[0]?.content?.[0]?.text\n        ?? j.message?.content\n        ?? j.choices?.[0]?.message?.content\n        ?? j.content ?? j.text ?? j;\n\nlet parsed;\nif (node && typeof node === 'object') {\n  parsed = node;                       // já é objeto, usa direto\n} else {\n  const s = String(node ?? '');\n  try { parsed = JSON.parse(s); }\n  catch (e) { const m = s.match(/\\{[\\s\\S]*\\}/); parsed = m ? JSON.parse(m[0]) : {}; }\n}\n\nreturn [{ json: {\n  responder: !!parsed.responder,\n  mensagem: parsed.mensagem || '',\n  encerrar: !!parsed.encerrar,\n  classificacao: parsed.classificacao || 'outro',\n  resumo: parsed.resumo || '',\n  notificar_vendedor: !!parsed.notificar_vendedor,\n  notificar_gestor: !!parsed.notificar_gestor,\n  motivo_gestor: parsed.motivo_gestor || ''\n} }];"
+      },
+      "id": "ce75e03c-e8a9-4615-8077-ddbd1187511f",
+      "name": "Interpreta resposta da IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        52352,
+        11200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "n1",
+              "name": "deal_id",
+              "value": "={{ $('Valida lead + Z-API remetente').item.json.deal_id }}",
+              "type": "string"
+            },
+            {
+              "id": "n2",
+              "name": "mensagem_lead",
+              "value": "={{ $('Redis: lê texto completo').item.json.textoCompleto }}",
+              "type": "string"
+            },
+            {
+              "id": "n3",
+              "name": "classificacao",
+              "value": "={{ $json.classificacao }}",
+              "type": "string"
+            },
+            {
+              "id": "n4",
+              "name": "resumo",
+              "value": "={{ $json.resumo }}",
+              "type": "string"
+            },
+            {
+              "id": "n5",
+              "name": "notificar_vendedor",
+              "value": "={{ $json.notificar_vendedor }}",
+              "type": "boolean"
+            },
+            {
+              "id": "n6",
+              "name": "notificar_gestor",
+              "value": "={{ $json.notificar_gestor }}",
+              "type": "boolean"
+            },
+            {
+              "id": "n7",
+              "name": "motivo_gestor",
+              "value": "={{ $json.motivo_gestor }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7d507603-0a2a-45b6-911d-832f017a2516",
+      "name": "Monta dados p/ notificação",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        52848,
+        11280
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "03ACy3AWAyhcUXbi",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/03ACy3AWAyhcUXbi",
+          "cachedResultName": "Comercial · Notificações (Vendedor + Gestor) - dev"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "b3b2b137-e460-4da9-8397-e348343eaa29",
+      "name": "Notifica vendedor/gestor",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        53088,
+        11408
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agente_memoria (telefone, deal_id, role, conteudo)\nVALUES ('{{ $('Extrai dados').item.json.telefone }}', '{{ $('Valida lead + Z-API remetente').item.json.deal_id }}', 'user', '{{ ($('Redis: lê texto completo').item.json.textoCompleto || '').replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "id": "ffd9fd43-8f73-4472-bffa-be98426ba0e6",
+      "name": "Memória: grava mensagem do lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        52608,
+        11104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "r1",
+              "leftValue": "={{ $('Interpreta resposta da IA').item.json.responder }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "801ff808-8aa2-4963-9d6c-31a9be7036f0",
+      "name": "Deve responder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        52848,
+        11104
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c6bd01bd-22d1-446e-aa42-88f0301a6d32",
+      "name": "Não responder (encerrado/sem necessidade)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        53088,
+        11200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agente_memoria (telefone, deal_id, role, conteudo)\nVALUES ('{{ $('Extrai dados').item.json.telefone }}', '{{ $('Valida lead + Z-API remetente').item.json.deal_id }}', 'assistant', '{{ ($('Interpreta resposta da IA').item.json.mensagem || '').replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "id": "7562d54c-f528-4173-8456-70fa7e6ec184",
+      "name": "Memória: grava resposta do agente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        53568,
+        11232
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg1",
+              "name": "modo_aprovacao",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "30877b80-74b3-4a17-88a7-1c84ef17bc04",
+      "name": "Config (modo aprovação = ON)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        53088,
+        11008
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "m1",
+              "leftValue": "={{ $json.modo_aprovacao }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "444d0e79-2df8-4fbd-80f0-21b5af075f38",
+      "name": "Modo aprovação?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        53328,
+        11104
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversa_status (telefone, deal_id, status, updated_at)\nVALUES ('{{ $('Extrai dados').item.json.telefone }}', '{{ $('Valida lead + Z-API remetente').item.json.deal_id }}', 'aguardando_aprovacao', now())\nON CONFLICT (telefone) DO UPDATE SET status = 'aguardando_aprovacao', updated_at = now();\nINSERT INTO aprovacao_pendente (telefone, deal_id, resposta_sugerida, status)\nVALUES ('{{ $('Extrai dados').item.json.telefone }}', '{{ $('Valida lead + Z-API remetente').item.json.deal_id }}', '{{ ($('Interpreta resposta da IA').item.json.mensagem || '').replace(/'/g, \"''\") }}', 'pendente') RETURNING id;",
+        "options": {}
+      },
+      "id": "b0d42a2d-2a95-4fc5-b174-f6dc4fd3abf0",
+      "name": "Grava pendência + status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        53568,
+        10992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE aprovacao_pendente SET group_msg_id = '{{ $json._data.Info.ID }}'\n WHERE id = {{ $('Grava pendência + status').first().json.id }};",
+        "options": {}
+      },
+      "id": "72f2facd-37ae-4018-8b5a-4f4e11b73233",
+      "name": "Guarda id da card na pendência",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        54080,
+        10992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1190c933-7f60-4715-b7a5-efa402d5f0da",
+      "name": "Aguardando aprovação da SDR",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        54320,
+        10928
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = ($('Interpreta resposta da IA').item.json.mensagem || '').trim();\nconst LIMITE = 350;\nlet partes = [];\nif (msg.length <= LIMITE) { partes = [msg]; }\nelse {\n  const blocos = msg.split(/\\n+/);\n  let atual = '';\n  for (const b of blocos) {\n    if ((atual + '\\n' + b).length > LIMITE && atual) { partes.push(atual.trim()); atual = b; }\n    else { atual = atual ? atual + '\\n' + b : b; }\n  }\n  if (atual) partes.push(atual.trim());\n  if (partes.length > 2) partes = [partes[0], partes.slice(1).join('\\n')];\n}\nreturn partes.filter(p => p.length).map((p, idx) => ({ json: { parte: p, indice: idx } }));"
+      },
+      "id": "75f8a5e0-dc04-4a57-a654-c9f3e9da2c85",
+      "name": "Quebra resposta em partes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        53824,
+        11232
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "58efc772-0309-4ff8-af65-f22eafd39559",
+      "name": "Loop das partes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        54080,
+        11232
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2f7b858b-d88e-4485-a59a-631b99215efa",
+      "name": "Fim (modo direto)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        54320,
+        11136
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nVALUES ('Comercial', '{{ $('Extrai dados').item.json.telefone }}', '000000', '{{ $('Valida lead + Z-API remetente').item.json.deal_id }}', 'agente', '{{ ($json.parte || '').replace(/'/g, \"''\") }}', NULL);",
+        "options": {}
+      },
+      "id": "946288d2-c959-41b8-a5aa-82e1522c7260",
+      "name": "Insere parte na WHATSAPP",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        54560,
+        10832
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "9bf38752-4114-4822-b334-2551d44c46d8",
+      "name": "Espera 3s entre partes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        54560,
+        11328
+      ],
+      "webhookId": "wait-3s-partes"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=DATA ATUAL: {{ $now.format('dd-MM-yyyy') }}\n\n{{ $json.promptUsuario }}"
+            },
+            {
+              "role": "system",
+              "content": "=Você é um assistente virtual de acompanhamento comercial que fala EM NOME do CEO da empresa, pelo WhatsApp, com um lead que participou de uma reunião de apresentação da Acme (sistema de gestão para construtoras).\n\nSEU PAPEL (importante): você NÃO é vendedor e NÃO negocia. Você faz o acompanhamento: acolhe o lead, mantém o relacionamento e faz a ponte com o vendedor. Você NÃO passa preços, valores, descontos, condições, prazos nem detalhes técnicos, e NÃO faz perguntas de qualificação ou proposta (não pergunte quantas obras, quais áreas, etc.).\n\nQUANDO O LEAD PERGUNTAR PREÇO, CONDIÇÕES, DÚVIDAS OU QUISER NEGOCIAR: agradeça, demonstre interesse em ajudar e diga, de forma cordial e breve, que vai pedir para o vendedor responsável entrar em contato para tratar disso. Não tente resolver você mesmo.\n\nESTILO: cordial, humano, próximo e objetivo. Mensagens curtas (é WhatsApp). Sem excesso de emojis. Use o primeiro nome do lead quando fizer sentido.\n\nSEGURANÇA (você fala em nome do CEO): nunca prometa nada; nunca fale mal de concorrentes; não invente informações sobre o produto; se o lead pedir para não ser contatado ou estiver ofensivo, seja educado, não insista e sinalize encerramento.\n\nEM CASO DE RECLAMAÇÃO (apresentação ruim, problema com o vendedor, vendedor não retornou): seja empático e cordial, reconheça e peça desculpas pela experiência, e diga que vai encaminhar o feedback ao time/responsável para que isso melhore e não se repita. NÃO prometa ações específicas, prazos, retorno com prioridade, nem que uma pessoa específica vai entrar em contato. Não assuma compromissos em nome de ninguém.\n\nENCERRAMENTO INTELIGENTE: quando o lead agradece ou se despede pela PRIMEIRA vez, RESPONDA uma vez, de forma curta e cordial (ex.: \"De nada, João! Estamos à disposição.\"), e marque encerrar=true. Só use responder=false se, olhando o histórico, você JÁ tiver se despedido/encerrado e o lead continuar mandando apenas agradecimentos repetidos — aí não responda, para não entrar em loop.\n\nCOMO PREENCHER OS CAMPOS:\n\nresponder: false quando não convém responder (agradecimento repetido, sem conteúdo acionável, ou conversa encerrada); senão true.\nmensagem: o texto a enviar ao lead (vazio se responder=false).\nencerrar: true quando a conversa chegou a um fim natural.\nclassificacao: a categoria principal da mensagem do lead.\nresumo: uma frase curta do que o lead quer/precisa, para o vendedor.\nnotificar_vendedor: true sempre que o lead trouxer algo que o vendedor precise tratar (preço, dúvida, interesse, negociação, agendamento); false para saudação/agradecimento vazio.\nnotificar_gestor: true somente se o lead reclamar de: apresentação ruim, problema com o vendedor, ou vendedor não retornou. Preencha motivo_gestor nesse caso.\nCONTEXTO — ÁUDIOS QUE O CEO ENVIOU (o lead provavelmente responde a um deles):\n\nPós-apresentação: \"Espero que tenha gostado da apresentação... conte comigo, vou fazer de tudo para viabilizar nossa solução na sua empresa.\"\nReaquecimento: \"Passei pelo sistema e vi que você ainda não fechou... em que momento da negociação estamos? posso ajudar a facilitar.\"\nÚltima tentativa: \"Desculpa a insistência, passando uma última vez... atendemos mais de milhares de construtoras... se quiser ajustar algum ponto da proposta, estou à disposição.\"\nUse o teor desses áudios para entender a que o lead está reagindo."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "reasoning": {
+            "reasoningOptions": {
+              "effort": "low"
+            }
+          },
+          "serviceTier": "flex",
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"responder\": {\n      \"type\": \"boolean\",\n      \"description\": \"true se convém enviar uma resposta ao lead; false quando não vale responder (ex.: agradecimento repetido ou conversa já encerrada).\"\n    },\n    \"mensagem\": {\n      \"type\": \"string\",\n      \"description\": \"Texto da resposta a enviar ao lead. Vazio quando responder=false.\"\n    },\n    \"encerrar\": {\n      \"type\": \"boolean\",\n      \"description\": \"true quando a conversa chegou a um fim natural.\"\n    },\n    \"classificacao\": {\n      \"type\": \"string\",\n      \"enum\": [\"preco\", \"duvida\", \"interesse\", \"agendamento\", \"reclamacao\", \"sem_interesse\", \"outro\"],\n      \"description\": \"Categoria principal da mensagem do lead.\"\n    },\n    \"resumo\": {\n      \"type\": \"string\",\n      \"description\": \"Uma frase curta do que o lead quer/precisa, para avisar o vendedor.\"\n    },\n    \"notificar_vendedor\": {\n      \"type\": \"boolean\",\n      \"description\": \"true quando há algo acionável para o vendedor (preço, dúvida, interesse, agendamento, reclamação).\"\n    },\n    \"notificar_gestor\": {\n      \"type\": \"boolean\",\n      \"description\": \"true apenas em reclamação: apresentação ruim, problema com o vendedor, ou vendedor não retornou.\"\n    },\n    \"motivo_gestor\": {\n      \"type\": \"string\",\n      \"description\": \"Uma frase descrevendo o problema quando notificar_gestor=true; vazio caso contrário.\"\n    }\n  },\n  \"required\": [\"responder\", \"mensagem\", \"encerrar\", \"classificacao\", \"resumo\", \"notificar_vendedor\", \"notificar_gestor\", \"motivo_gestor\"],\n  \"additionalProperties\": false\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        51968,
+        11200
+      ],
+      "id": "b94e1e24-e8c6-4d56-a489-063b49cb0cf2",
+      "name": "Agente SDR",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# 🤖 Este é um Agente de IA SDR, a segunda parte do acompanhamento de leads pós-reunião. \n## A primeira parte envia, de forma automática, os áudios do CEO após a reunião de apresentação. Este fluxo cuida do que acontece depois: **quando o lead responde.**\n\n**Para que serve:** dar sequência à conversa com o lead de forma rápida e no tom certo, tentando entender a dor dele e conduzir para a venda, sem depender de alguém responder manualmente na hora.\n\n**O que ele faz, na prática:**\nRecebe a resposta do lead pelo WhatsApp.\nConfirma que é um lead de verdade (que participou da reunião) e junta as mensagens caso venham picadas.\nEntende o que o cliente quer e escreve uma resposta no tom do CEO, focada em conversão.\nA resposta passa pela revisão da SDR antes de ir ao lead: ela pode aprovar, ajustar o texto ou assumir a conversa.\nAvisa o vendedor daquele lead com um resumo (preço, dúvidas, etc.) e alerta o gestor caso o lead reclame.\nSabe a hora de encerrar, para não ficar respondendo à toa.\n\n**O agente foi desenhado para ser seguro. Ele não promete preços ou condições que não foram informados, não inventa dados e respeita quem pede para não ser contatado.**",
+        "height": 656,
+        "width": 640,
+        "color": "#C2919E"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        44720,
+        10864
+      ],
+      "typeVersion": 1,
+      "id": "135c7086-e76a-42ed-aa39-ed10a47b4986",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 992,
+        "width": 9344,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        45424,
+        10688
+      ],
+      "typeVersion": 1,
+      "id": "c0a533e3-f142-468b-bb01-66ba96adeee4",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://waha.internal.local/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $('Extrai dados').item.json.chatIdLead }}\",\n  \"text\": {{ JSON.stringify($json.parte) }},\n  \"session\": \"waha-session-001\"\n}",
+        "options": {}
+      },
+      "id": "c0577d33-b160-493c-9c2e-8e8178bac920",
+      "name": "Envia mensagem ao lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        54320,
+        11328
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ab7b8a06-a457-451f-9373-8127fe9e41ba",
+              "leftValue": "={{ $json.notificar_vendedor }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "fc7bd583-b043-42c9-8e01-18c8d474067e",
+              "leftValue": "={{ $json.notificar_gestor }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        52608,
+        11296
+      ],
+      "id": "ce7a4ade-bdcf-4d65-be75-8285380219e9",
+      "name": "Notificar vendedor/gestor?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Adapta WAHA').item.json.body.audio.audioUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        47712,
+        11376
+      ],
+      "id": "c2ad6340-b8df-47b8-89b4-0facf23e15b3",
+      "name": "Download audio"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "=data",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        47936,
+        11376
+      ],
+      "id": "0613067d-eb0f-46aa-91fd-f3fb7d541adc",
+      "name": "Transcreve Audio",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39bbfeb3-2b43-4c24-9d2d-b02fd9943ff0",
+              "name": "content",
+              "value": "={{ $('Adapta WAHA').item.json.body.text.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        47952,
+        11008
+      ],
+      "id": "71de7d4b-59c1-459b-a3cc-979b3a8c7798",
+      "name": "Trata Mensagem"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Adapta WAHA').first().json.body.image.imageUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "2708f607-5b31-42f2-a574-e5b22d29fc3b",
+      "name": "Baixa imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        47664,
+        11200
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4-mini",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Você recebe uma imagem enviada por um lead durante uma conversa comercial no WhatsApp. Sua única tarefa é DESCREVER e TRANSCREVER o conteúdo da imagem em português, de forma objetiva, para que outro assistente entenda do que se trata sem ver a imagem.\n\nRegras:\n\nDiga primeiro, em 1 frase, QUE TIPO de imagem é (ex.: print de conversa, foto de um documento, captura de uma proposta, foto de uma obra, comprovante, planilha, etc.).\nTRANSCREVA todo o texto legível da imagem (OCR), mantendo valores, nomes, datas e números exatamente como aparecem.\nDescreva brevemente os elementos visuais relevantes (o que a imagem mostra).\nSeja fiel ao conteúdo: NÃO invente, NÃO complete o que não está visível e NÃO faça suposições. Se algo estiver ilegível, escreva \"[ilegível]\".\nNÃO responda ao lead, NÃO dê opinião e NÃO tome decisões. Apenas descreva/transcreva.\nSe a imagem não tiver texto, apenas descreva o que se vê.\nResponda somente com a descrição/transcrição, em texto corrido, sem comentários extras."
+            },
+            {
+              "type": "image",
+              "imageType": "base64"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        47872,
+        11200
+      ],
+      "id": "66026f37-3a15-4f47-a3ac-2435e6c232f8",
+      "name": "Analisa imagem",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39bbfeb3-2b43-4c24-9d2d-b02fd9943ff0",
+              "name": "content",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48144,
+        11376
+      ],
+      "id": "f046b5d0-6e90-46fb-883a-e92f62836c80",
+      "name": "Trata Audio"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39bbfeb3-2b43-4c24-9d2d-b02fd9943ff0",
+              "name": "content",
+              "value": "={{ $json.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48480,
+        11200
+      ],
+      "id": "98b361c9-999d-4568-91ff-7d7abd5ce897",
+      "name": "Normaliza mensagem"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "408a9072-20bb-4db4-8009-09b4ed0e6f27",
+              "name": "content",
+              "value": "={{ $json.output[0].content[0].text }}, {{ $('Webhook').item.json.body.payload._data.RawMessage.imageMessage.caption }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48208,
+        11200
+      ],
+      "id": "0fc6ab91-7870-4742-8a95-be73b2590081",
+      "name": "Trata imagem"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || {};\nif (b.event !== 'message') return [];  \n\nconst p = b.payload || {};\nconst info = (p._data && p._data.Info) || {};\n\n// telefone real (SenderAlt); \"from\" é @lid e não serve\nconst alt = info.SenderAlt || info.Sender || p.from || '';\nconst telefone = String(alt).replace(/[:@].*$/, '');\n\nconst isGroup = !!info.IsGroup;\nconst chatId  = info.Chat || p.from || '';\nconst tipo    = (info.MediaType || info.Type || 'text').toLowerCase();\n\n// media.url vem como localhost interno → troca pelo host público do WAHA (e baixamos com a API key)\nconst WAHA = 'http://waha.internal.local';\nlet mediaUrl = (p.media && p.media.url) || '';\nmediaUrl = mediaUrl.replace('http://localhost:3000', WAHA);\n\nconst body = {\n  phone: isGroup ? chatId : telefone,\n  chatId: chatId,                         // <<< NOVO: o id do chat que recebeu (p/ responder)\n  isGroup,\n  participantPhone: telefone,\n  senderName: info.PushName || '',\n  fromMe: !!p.fromMe,\n  type: 'ReceivedCallback',\n  isStatusReply: false,\n  messageId: p.id || info.ID || '',\n  quotedId: (p.replyTo && p.replyTo.id) || ''\n};\n\nif (tipo === 'image') body.image = { imageUrl: mediaUrl };\nelse if (tipo === 'ptt' || tipo === 'audio') body.audio = { audioUrl: mediaUrl };\nelse body.text = { message: p.body || '' };\n\nreturn [{ json: { event: b.event, session: b.session, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        45744,
+        11136
+      ],
+      "id": "0ce2ae0b-c1b5-421d-880a-95da92659bed",
+      "name": "Adapta WAHA",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Adapta WAHA').item.json.body.text.message }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "1025b53f-90e0-4d28-975e-7125e154b9d7"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a43bca51-54bd-4345-adc2-a290c9d76c8b",
+                    "leftValue": "={{ $('Adapta WAHA').item.json.body.image.imageUrl }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d059826f-725e-4aa9-bce4-05a5ac18865f",
+                    "leftValue": "={{ $('Adapta WAHA').item.json.body.audio.audioUrl }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        47456,
+        11184
+      ],
+      "id": "a0c1de4f-cd20-441f-993a-549a6c401976",
+      "name": "Classifica mensagem"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://waha.internal.local/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": {{ JSON.stringify($('Config (grupo de aprovação)').first().json.group_aprovacao) }},\n  \"session\": \"waha-session-001\",\n  \"text\": {{ JSON.stringify('🧑 *Lead ' + ($('Valida lead + Z-API remetente').first().json.lead_nome || '') + '* (deal ' + ($('Valida lead + Z-API remetente').first().json.deal_id || '') + ') respondeu:\\n\"' + ($('Redis: lê texto completo').first().json.textoCompleto || '') + '\"\\n\\n🤖 *Resposta sugerida:*\\n' + ($('Interpreta resposta da IA').first().json.mensagem || '') + '\\n\\n👉 Responda: *aprovar* / *reprovar* / *parar*') }}\n}",
+        "options": {}
+      },
+      "id": "5b8b0de7-da46-4f68-bddd-ee56fee31e30",
+      "name": "Envia para grupo de aprovação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        53824,
+        10992
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zapi-lead-resposta",
+        "options": {}
+      },
+      "id": "a9789baf-33d8-4005-940f-c65c292af1a8",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        45504,
+        11136
+      ],
+      "webhookId": "zapi-lead-resposta"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "x-forwarded-for": "0.0.0.0",
+            "x-forwarded-proto": "https",
+            "x-forwarded-port": "443",
+            "host": "n8n.example.com",
+            "x-amzn-trace-id": "",
+            "content-length": "792",
+            "content-type": "application/json",
+            "accept": "*/*",
+            "accept-language": "en-US,en;q=0.5",
+            "authorization": {
+              "__redacted": true,
+              "reason": "node_defined_field",
+              "canReveal": false
+            },
+            "user-agent": "Mozilla/4.0 (compatible; Win32; WinHttp.WinHttpRequest.5)"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "isStatusReply": false,
+            "chatLid": null,
+            "connectedPhone": "550000000002",
+            "waitingMessage": false,
+            "isEdit": false,
+            "isGroup": true,
+            "isNewsletter": false,
+            "instanceId": "REDACTED",
+            "messageId": "REDACTED",
+            "phone": "120363000000000000-group",
+            "fromMe": false,
+            "momment": 1783608630003,
+            "status": "RECEIVED",
+            "chatName": "teste Agente IA SDR",
+            "senderPhoto": "",
+            "senderName": "Usuário Teste",
+            "photo": null,
+            "broadcast": false,
+            "participantPhone": "550000000000",
+            "participantLid": "",
+            "forwarded": false,
+            "type": "ReceivedCallback",
+            "fromApi": false,
+            "text": {
+              "message": "aprovar"
+            }
+          },
+          "webhookUrl": "https://n8n.example.com/webhook/zapi-lead-resposta",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Config (grupo de aprovação)": {
+      "main": [
+        [
+          {
+            "node": "É do grupo de aprovação?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É do grupo de aprovação?": {
+      "main": [
+        [
+          {
+            "node": "Chama Aprovação & Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "É mensagem válida de lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É mensagem válida de lead?": {
+      "main": [
+        [
+          {
+            "node": "Extrai dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrai dados": {
+      "main": [
+        [
+          {
+            "node": "Valida lead + Z-API remetente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valida lead + Z-API remetente": {
+      "main": [
+        [
+          {
+            "node": "É lead do fluxo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É lead do fluxo?": {
+      "main": [
+        [
+          {
+            "node": "Classifica mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: lê buffer": {
+      "main": [
+        [
+          {
+            "node": "Monta buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monta buffer": {
+      "main": [
+        [
+          {
+            "node": "Redis: grava buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: grava buffer": {
+      "main": [
+        [
+          {
+            "node": "Redis: marca último msgId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: marca último msgId": {
+      "main": [
+        [
+          {
+            "node": "Aguarda 1 min (buffer)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguarda 1 min (buffer)": {
+      "main": [
+        [
+          {
+            "node": "Redis: lê último msgId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: lê último msgId": {
+      "main": [
+        [
+          {
+            "node": "Sou a última mensagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sou a última mensagem?": {
+      "main": [
+        [
+          {
+            "node": "Redis: lê texto completo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chegou msg nova — aborta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: lê texto completo": {
+      "main": [
+        [
+          {
+            "node": "Redis: limpa buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: limpa buffer": {
+      "main": [
+        [
+          {
+            "node": "Lê status da conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lê status da conversa": {
+      "main": [
+        [
+          {
+            "node": "Está em handoff?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Está em handoff?": {
+      "main": [
+        [
+          {
+            "node": "Em handoff — humano cuida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Memória: lê histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória: lê histórico": {
+      "main": [
+        [
+          {
+            "node": "Formata contexto p/ IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formata contexto p/ IA": {
+      "main": [
+        [
+          {
+            "node": "Agente SDR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpreta resposta da IA": {
+      "main": [
+        [
+          {
+            "node": "Memória: grava mensagem do lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notificar vendedor/gestor?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monta dados p/ notificação": {
+      "main": [
+        [
+          {
+            "node": "Notifica vendedor/gestor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória: grava mensagem do lead": {
+      "main": [
+        [
+          {
+            "node": "Deve responder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deve responder?": {
+      "main": [
+        [
+          {
+            "node": "Config (modo aprovação = ON)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Não responder (encerrado/sem necessidade)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória: grava resposta do agente": {
+      "main": [
+        [
+          {
+            "node": "Quebra resposta em partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (modo aprovação = ON)": {
+      "main": [
+        [
+          {
+            "node": "Modo aprovação?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modo aprovação?": {
+      "main": [
+        [
+          {
+            "node": "Grava pendência + status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Memória: grava resposta do agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grava pendência + status": {
+      "main": [
+        [
+          {
+            "node": "Envia para grupo de aprovação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quebra resposta em partes": {
+      "main": [
+        [
+          {
+            "node": "Loop das partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop das partes": {
+      "main": [
+        [
+          {
+            "node": "Fim (modo direto)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Envia mensagem ao lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera 3s entre partes": {
+      "main": [
+        [
+          {
+            "node": "Loop das partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente SDR": {
+      "main": [
+        [
+          {
+            "node": "Interpreta resposta da IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem ao lead": {
+      "main": [
+        [
+          {
+            "node": "Espera 3s entre partes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar vendedor/gestor?": {
+      "main": [
+        [
+          {
+            "node": "Monta dados p/ notificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download audio": {
+      "main": [
+        [
+          {
+            "node": "Transcreve Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trata Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Normaliza mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixa imagem": {
+      "main": [
+        [
+          {
+            "node": "Analisa imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisa imagem": {
+      "main": [
+        [
+          {
+            "node": "Trata imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcreve Audio": {
+      "main": [
+        [
+          {
+            "node": "Trata Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliza mensagem": {
+      "main": [
+        [
+          {
+            "node": "Redis: lê buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trata imagem": {
+      "main": [
+        [
+          {
+            "node": "Normaliza mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trata Audio": {
+      "main": [
+        [
+          {
+            "node": "Normaliza mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adapta WAHA": {
+      "main": [
+        [
+          {
+            "node": "Config (grupo de aprovação)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifica mensagem": {
+      "main": [
+        [
+          {
+            "node": "Trata Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baixa imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda id da card na pendência": {
+      "main": [
+        [
+          {
+            "node": "Aguardando aprovação da SDR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia para grupo de aprovação": {
+      "main": [
+        [
+          {
+            "node": "Guarda id da card na pendência",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1d318557-15d3-4f5a-9692-887753ca0eeb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "E6eEE7oN89DwGQH1",
+  "tags": []
+}
