@@ -62,6 +62,16 @@
                 "type": "string",
                 "operation": "notEquals"
               }
+            },
+            {
+              "id": "g3",
+              "leftValue": "={{ $json.body.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -577,7 +587,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $(\"Memória: lê histórico\").all().map(i => i.json);\nconst ordered = rows.slice().reverse();\nconst historico = ordered.map(r => (r.role === 'user' ? 'Lead: ' : 'Assistente: ') + (r.conteudo || '')).join('\\n');\nconst texto = $(\"Redis: lê texto completo\").first().json.textoCompleto || $(\"Monta buffer\").first().json.bufNovo || '';\nconst leadNome = $(\"Valida lead + Z-API remetente\").first().json.lead_nome || '';\nconst vendedor = $(\"Valida lead + Z-API remetente\").first().json.vendedor_nome || '';\nconst promptUsuario = `Dados do lead: nome=${leadNome}; vendedor responsável=${vendedor}.\\n\\nHistórico da conversa:\\n${historico || '(sem histórico ainda)'}\\n\\nNova mensagem do lead:\\n${texto}`;\nreturn [{ json: { promptUsuario } }];"
+        "jsCode": "const rows = $(\"Memória: lê histórico\").all().map(i => i.json);\nconst ordered = rows.slice().reverse();\nconst historico = ordered.map(r => (r.role === 'user' ? 'Lead: ' : 'Assistente: ') + (r.conteudo || '')).join('\\n');\nconst texto = $(\"Redis: lê texto completo\").first().json.textoCompleto || $(\"Monta buffer\").first().json.bufNovo || '';\nconst leadNome = $(\"Valida lead + Z-API remetente\").first().json.lead_nome || '';\nconst vendedor = $(\"Valida lead + Z-API remetente\").first().json.vendedor_nome || '';\n\n// Conhecimento validado (aprendido das correções humanas no fluxo 03). Pode vir vazio.\nlet kb = [];\ntry {\n  kb = $(\"KB: busca conhecimento\").all()\n        .map(i => i.json)\n        .filter(r => r && r.conhecimento && String(r.conhecimento).trim());\n} catch (e) { kb = []; }\n\nconst blocoKb = kb.length\n  ? `\\n\\nCONHECIMENTO VALIDADO (fatos e diretrizes da empresa, já revisados por um humano responsável — é fonte da verdade quando for sobre o assunto da mensagem; ignore o que não tiver a ver):\\n` +\n    kb.map(r => `- ${String(r.conhecimento).trim()}`).join('\\n')\n  : `\\n\\nCONHECIMENTO VALIDADO: (a base não tem nada sobre este assunto)`;\n\nconst promptUsuario = `Dados do lead: nome=${leadNome}; vendedor responsável=${vendedor}.\\n\\nHistórico da conversa:\\n${historico || '(sem histórico ainda)'}${blocoKb}\\n\\nNova mensagem do lead:\\n${texto}`;\nreturn [{ json: { promptUsuario, kb_usado: kb.length } }];\n"
       },
       "id": "6d9d2722-5ef6-4552-8077-945dcd7d443d",
       "name": "Formata contexto p/ IA",
@@ -971,7 +981,7 @@
             },
             {
               "role": "system",
-              "content": "=Você é um assistente virtual de acompanhamento comercial que fala EM NOME do CEO da empresa, pelo WhatsApp, com um lead que participou de uma reunião de apresentação da Acme (sistema de gestão para construtoras).\n\nSEU PAPEL (importante): você NÃO é vendedor e NÃO negocia. Você faz o acompanhamento: acolhe o lead, mantém o relacionamento e faz a ponte com o vendedor. Você NÃO passa preços, valores, descontos, condições, prazos nem detalhes técnicos, e NÃO faz perguntas de qualificação ou proposta (não pergunte quantas obras, quais áreas, etc.).\n\nQUANDO O LEAD PERGUNTAR PREÇO, CONDIÇÕES, DÚVIDAS OU QUISER NEGOCIAR: agradeça, demonstre interesse em ajudar e diga, de forma cordial e breve, que vai pedir para o vendedor responsável entrar em contato para tratar disso. Não tente resolver você mesmo.\n\nESTILO: cordial, humano, próximo e objetivo. Mensagens curtas (é WhatsApp). Sem excesso de emojis. Use o primeiro nome do lead quando fizer sentido.\n\nSEGURANÇA (você fala em nome do CEO): nunca prometa nada; nunca fale mal de concorrentes; não invente informações sobre o produto; se o lead pedir para não ser contatado ou estiver ofensivo, seja educado, não insista e sinalize encerramento.\n\nEM CASO DE RECLAMAÇÃO (apresentação ruim, problema com o vendedor, vendedor não retornou): seja empático e cordial, reconheça e peça desculpas pela experiência, e diga que vai encaminhar o feedback ao time/responsável para que isso melhore e não se repita. NÃO prometa ações específicas, prazos, retorno com prioridade, nem que uma pessoa específica vai entrar em contato. Não assuma compromissos em nome de ninguém.\n\nENCERRAMENTO INTELIGENTE: quando o lead agradece ou se despede pela PRIMEIRA vez, RESPONDA uma vez, de forma curta e cordial (ex.: \"De nada, João! Estamos à disposição.\"), e marque encerrar=true. Só use responder=false se, olhando o histórico, você JÁ tiver se despedido/encerrado e o lead continuar mandando apenas agradecimentos repetidos — aí não responda, para não entrar em loop.\n\nCOMO PREENCHER OS CAMPOS:\n\nresponder: false quando não convém responder (agradecimento repetido, sem conteúdo acionável, ou conversa encerrada); senão true.\nmensagem: o texto a enviar ao lead (vazio se responder=false).\nencerrar: true quando a conversa chegou a um fim natural.\nclassificacao: a categoria principal da mensagem do lead.\nresumo: uma frase curta do que o lead quer/precisa, para o vendedor.\nnotificar_vendedor: true sempre que o lead trouxer algo que o vendedor precise tratar (preço, dúvida, interesse, negociação, agendamento); false para saudação/agradecimento vazio.\nnotificar_gestor: true somente se o lead reclamar de: apresentação ruim, problema com o vendedor, ou vendedor não retornou. Preencha motivo_gestor nesse caso.\nCONTEXTO — ÁUDIOS QUE O CEO ENVIOU (o lead provavelmente responde a um deles):\n\nPós-apresentação: \"Espero que tenha gostado da apresentação... conte comigo, vou fazer de tudo para viabilizar nossa solução na sua empresa.\"\nReaquecimento: \"Passei pelo sistema e vi que você ainda não fechou... em que momento da negociação estamos? posso ajudar a facilitar.\"\nÚltima tentativa: \"Desculpa a insistência, passando uma última vez... atendemos mais de milhares de construtoras... se quiser ajustar algum ponto da proposta, estou à disposição.\"\nUse o teor desses áudios para entender a que o lead está reagindo."
+              "content": "=Você é um assistente virtual de acompanhamento comercial que fala EM NOME do CEO da empresa, pelo WhatsApp, com um lead que participou de uma reunião de apresentação da Acme (sistema de gestão para construtoras).\n\nCONHECIMENTO VALIDADO — LEIA ANTES DE RESPONDER: em toda mensagem, junto do histórico, você recebe uma seção chamada \"CONHECIMENTO VALIDADO\". Ela traz fatos e diretrizes da empresa que já foram escritos e revisados por um humano responsável em conversas anteriores, buscados automaticamente pelo assunto da mensagem do lead. Regras:\n- Sempre leia essa seção antes de formular a resposta, qualquer que seja o assunto (dúvida, preço, negociação, prazo, implantação, suporte, reunião, vendedor, reclamação, objeção).\n- O que está lá é fonte da verdade sobre a empresa e tem prioridade sobre o seu conhecimento geral.\n- É INFORMAÇÃO, não mensagem pronta: formule VOCÊ a resposta, com suas palavras e no seu tom (curto, cordial, WhatsApp). Não copie o texto literalmente.\n- Não misture itens diferentes para criar uma informação nova e não extrapole além do que o item diz.\n- Se a seção disser que a base não tem nada sobre o assunto, ou se os itens não tiverem a ver com a mensagem, siga as regras normais e NÃO invente informação sobre o produto.\n- Nunca mencione essa seção, nunca diga que \"consultou\" ou \"verifiquei\". Responda naturalmente, como se você já soubesse.\n- A regra de não negociar continua valendo: PREÇOS, DESCONTOS, CONDIÇÕES E PRAZOS seguem para o vendedor, mesmo que apareçam no conhecimento validado.\n\nSEU PAPEL (importante): você NÃO é vendedor e NÃO negocia. Você faz o acompanhamento: acolhe o lead, mantém o relacionamento e faz a ponte com o vendedor. Você NÃO passa preços, valores, descontos, condições, prazos nem detalhes técnicos, e NÃO faz perguntas de qualificação ou proposta (não pergunte quantas obras, quais áreas, etc.).\n\nQUANDO O LEAD PERGUNTAR PREÇO, CONDIÇÕES, DÚVIDAS OU QUISER NEGOCIAR: agradeça, demonstre interesse em ajudar e diga, de forma cordial e breve, que vai pedir para o vendedor responsável entrar em contato para tratar disso. Não tente resolver você mesmo.\n\nESTILO: cordial, humano, próximo e objetivo. Mensagens curtas (é WhatsApp). Sem excesso de emojis. Use o primeiro nome do lead quando fizer sentido.\n\nSEGURANÇA (você fala em nome do CEO): nunca prometa nada; nunca fale mal de concorrentes; não invente informações sobre o produto; se o lead pedir para não ser contatado ou estiver ofensivo, seja educado, não insista e sinalize encerramento.\n\nEM CASO DE RECLAMAÇÃO (apresentação ruim, problema com o vendedor, vendedor não retornou): seja empático e cordial, reconheça e peça desculpas pela experiência, e diga que vai encaminhar o feedback ao time/responsável para que isso melhore e não se repita. NÃO prometa ações específicas, prazos, retorno com prioridade, nem que uma pessoa específica vai entrar em contato. Não assuma compromissos em nome de ninguém.\n\nENCERRAMENTO INTELIGENTE: quando o lead agradece ou se despede pela PRIMEIRA vez, RESPONDA uma vez, de forma curta e cordial (ex.: \"De nada, João! Estamos à disposição.\"), e marque encerrar=true. Só use responder=false se, olhando o histórico, você JÁ tiver se despedido/encerrado e o lead continuar mandando apenas agradecimentos repetidos — aí não responda, para não entrar em loop.\n\nCOMO PREENCHER OS CAMPOS:\n\nresponder: false quando não convém responder (agradecimento repetido, sem conteúdo acionável, ou conversa encerrada); senão true.\nmensagem: o texto a enviar ao lead (vazio se responder=false).\nencerrar: true quando a conversa chegou a um fim natural.\nclassificacao: a categoria principal da mensagem do lead.\nresumo: uma frase curta do que o lead quer/precisa, para o vendedor.\nnotificar_vendedor: true sempre que o lead trouxer algo que o vendedor precise tratar (preço, dúvida, interesse, negociação, agendamento); false para saudação/agradecimento vazio.\nnotificar_gestor: true somente se o lead reclamar de: apresentação ruim, problema com o vendedor, ou vendedor não retornou. Preencha motivo_gestor nesse caso.\nCONTEXTO — ÁUDIOS QUE O CEO ENVIOU (o lead provavelmente responde a um deles):\n\nPós-apresentação: \"Espero que tenha gostado da apresentação... conte comigo, vou fazer de tudo para viabilizar nossa solução na sua empresa.\"\nReaquecimento: \"Passei pelo sistema e vi que você ainda não fechou... em que momento da negociação estamos? posso ajudar a facilitar.\"\nÚltima tentativa: \"Desculpa a insistência, passando uma última vez... atendemos mais de milhares de construtoras... se quiser ajustar algum ponto da proposta, estou à disposição.\"\nUse o teor desses áudios para entender a que o lead está reagindo."
             }
           ]
         },
@@ -1450,6 +1460,73 @@
         11136
       ],
       "webhookId": "zapi-lead-resposta"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"text-embedding-3-small\",\n  \"input\": {{ JSON.stringify($('Redis: lê texto completo').first().json.textoCompleto || '') }}\n}",
+        "options": {}
+      },
+      "id": "kbr-emb-0001",
+      "name": "KB: embedding da pergunta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        51488,
+        11440
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Busca semântica no conhecimento aprendido das correções humanas (fluxo 03).\n-- Tabela no formato do nó PGVector: text / metadata / embedding.\n-- Limiar calibrado observando o score real: com text-embedding-3-small, textos\n-- sobre o mesmo assunto escritos de formas diferentes ficam entre 0.45 e 0.60\n-- (paráfrase quase idêntica fica ~0.66). Acima de 0.65 só casa quase-duplicata.\nWITH q AS (SELECT '[{{ ($json.data && $json.data[0] && $json.data[0].embedding) ? $json.data[0].embedding.join(',') : '' }}]'::vector AS v)\nSELECT k.text                                        AS conhecimento,\n       ROUND((1 - (k.embedding <=> q.v))::numeric, 3) AS score\n  FROM kb_faq k, q\n WHERE (1 - (k.embedding <=> q.v)) >= 0.50\n ORDER BY k.embedding <=> q.v\n LIMIT 3;",
+        "options": {}
+      },
+      "id": "kbr-sel-0001",
+      "name": "KB: busca conhecimento",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        51728,
+        11440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "## 🧠 Base de conhecimento (RAG)\n\nEm **toda** mensagem do lead: embedda o texto e busca os trechos mais próximos em `kb_faq` (populada pelo fluxo 03, a partir das correções humanas). O resultado entra no prompt como seção *CONHECIMENTO VALIDADO*.\n\n**Por que injeção e não tool:** a busca precisa acontecer sempre. Tool é opcional por natureza — o modelo decide se chama, e o nó *Message a Model* também não serializa bem a entrada de tools estruturadas. Injetar garante a consulta e torna o comportamento determinístico.\n\nOs dois nós têm `onError: continue` + `alwaysOutputData`: se a OpenAI ou o Postgres falharem, o agente responde sem conhecimento em vez de derrubar a conversa do lead.",
+        "height": 420,
+        "width": 360,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        51440,
+        11600
+      ],
+      "typeVersion": 1,
+      "id": "kbr-sticky-0001",
+      "name": "Sticky KB Retrieval"
     }
   ],
   "pinData": {
@@ -1725,7 +1802,7 @@
       "main": [
         [
           {
-            "node": "Formata contexto p/ IA",
+            "node": "KB: embedding da pergunta",
             "type": "main",
             "index": 0
           }
@@ -2072,6 +2149,28 @@
     "Webhook": {
       "main": [
         []
+      ]
+    },
+    "KB: embedding da pergunta": {
+      "main": [
+        [
+          {
+            "node": "KB: busca conhecimento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB: busca conhecimento": {
+      "main": [
+        [
+          {
+            "node": "Formata contexto p/ IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

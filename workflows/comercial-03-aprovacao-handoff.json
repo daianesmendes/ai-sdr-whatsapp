@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Interpreta a interação da SDR no grupo (comando de texto: aprovar / reprovar / parar).\nconst b = $json.body ?? $json;\nconst raw = (b.text && b.text.message) ? b.text.message : (b.body || '');\nconst txt = String(raw).trim().toLowerCase();\nlet acao = '';\nif (txt.startsWith('aprovar')) acao = 'aprovar';\nelse if (txt.startsWith('reprovar')) acao = 'reprovar';\nelse if (txt.startsWith('parar') || txt.includes('ia parar')) acao = 'parar';\nconst quotedId = b.quotedId || '';\nreturn [{ json: { acao, quotedId, texto: raw } }];"
+        "jsCode": "// Interpreta a interação da SDR no grupo: comando de TEXTO ou de ÁUDIO transcrito.\n// Aceita: aprovar / reprovar [texto correto] / parar, e também sinônimos falados\n// (\"sim\", \"não\", \"pode mandar\", \"para a IA\", ...), porque quem aprova costuma\n// responder por áudio no celular.\nconst trg = $('Recebe msg do grupo').first().json;\nconst b   = trg.body ?? trg ?? {};\nconst src = $json || {};\n\nconst transc = String(src.transcricao ?? '').trim();\nconst veioDeAudio = transc !== '';\nconst raw = veioDeAudio ? transc : ((b.text && b.text.message) ? b.text.message : (b.body || ''));\nconst txt = String(raw).trim();\n\n// tira acento preservando o tamanho da string (para cortar o comando do resto pelo índice)\nconst MAP = {'á':'a','à':'a','â':'a','ã':'a','ä':'a','é':'e','è':'e','ê':'e','ë':'e','í':'i','ì':'i','î':'i','ï':'i',\n             'ó':'o','ò':'o','ô':'o','õ':'o','ö':'o','ú':'u','ù':'u','û':'u','ü':'u','ç':'c','ñ':'n'};\nconst low = txt.toLowerCase().split('').map(c => MAP[c] || c).join('');\n\nconst palavras = low.split(/\\s+/).filter(Boolean).length;\nconst curto = palavras <= 4;   // sinônimo só vale em mensagem curta OU seguido de pontuação\n\nconst REGRAS = [\n  // comandos explícitos: valem sempre\n  { acao: 'aprovar',  re: /^(aprovar|aprovado|aprova)([:\\-–—,.!]+)?\\s*/,    estrito: true  },\n  { acao: 'reprovar', re: /^(reprovar|reprovado|reprova)([:\\-–—,.!]+)?\\s*/, estrito: true  },\n  { acao: 'parar',    re: /^(parar|pausar|ia parar|parar a ia|para a ia|pausa a ia|pausar a ia)([:\\-–—,.!]+)?\\s*/, estrito: true },\n  // sinônimos falados: só valem se a mensagem for curta ou tiver pontuação depois\n  { acao: 'aprovar',  re: /^(sim|isso|ok|okay|pode enviar|pode mandar|pode|manda|mandar|envia|enviar|perfeito|certo|positivo|beleza|blz)([:\\-–—,.!]+)?\\s*/, estrito: false },\n  { acao: 'reprovar', re: /^(nao|negativo|errado|refazer|corrigir|corrige)([:\\-–—,.!]+)?\\s*/, estrito: false },\n  { acao: 'parar',    re: /^(para|pare|pausa|assumo|eu assumo|deixa comigo)([:\\-–—,.!]+)?\\s*/, estrito: false },\n];\n\nlet acao = '', resto = '';\nfor (const r of REGRAS) {\n  const m = low.match(r.re);\n  if (!m) continue;\n  const temPontuacao = !!(m[2] && m[2].length);\n  if (r.estrito || curto || temPontuacao) {\n    acao = r.acao;\n    resto = txt.slice(m[0].length).trim();\n    break;\n  }\n}\nresto = resto.replace(/^[:\\-–—,.!?]+\\s*/, '');\nif (acao === 'parar') resto = '';\n\nconst quotedId = b.quotedId || '';\n// texto = o que deve ir ao lead: o resto (quando veio junto do comando) ou a mensagem toda\nconst texto = acao ? resto : txt;\n\nreturn [{ json: { acao, quotedId, texto, resto, veioDeAudio } }];\n"
       },
       "id": "a4072ae6-d125-4b3b-9d74-261689b1c209",
       "name": "Interpreta ação",
@@ -38,7 +38,7 @@
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        8784,
+        9456,
         2752
       ],
       "credentials": {
@@ -129,14 +129,14 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        9008,
+        9680,
         2720
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT telefone, deal_id, resposta_sugerida\n  FROM aprovacao_pendente\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status = 'pendente'\n ORDER BY created_at DESC\n LIMIT 1;",
+        "query": "-- Citou a card: casa pelo group_msg_id. Não citou: só resolve se houver exatamente 1 pendente.\nSELECT telefone, deal_id, resposta_sugerida\n  FROM aprovacao_pendente\n WHERE status = 'pendente'\n   AND (\n        ('{{ $('Interpreta ação').first().json.quotedId }}' <> '' AND group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}')\n        OR ('{{ $('Interpreta ação').first().json.quotedId }}' = '' AND (SELECT COUNT(*) FROM aprovacao_pendente WHERE status = 'pendente') = 1)\n   )\n ORDER BY created_at DESC\n LIMIT 1;",
         "options": {}
       },
       "id": "97edd795-fb1f-4aa0-b194-3cb37f6dd8b7",
@@ -144,7 +144,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9296,
+        9968,
         2384
       ],
       "credentials": {
@@ -165,7 +165,7 @@
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        10896,
+        11568,
         2336
       ],
       "credentials": {
@@ -178,7 +178,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE aprovacao_pendente SET status = 'concluido'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}';\nUPDATE conversa_status SET status = 'ativa', updated_at = now()\n WHERE telefone = '{{ $('APROVAR: pega resposta').first().json.telefone }}';",
+        "query": "UPDATE aprovacao_pendente SET status = 'concluido'\n WHERE telefone = '{{ $('APROVAR: pega resposta').first().json.telefone }}'\n   AND status = 'pendente';\nUPDATE conversa_status SET status = 'ativa', updated_at = now()\n WHERE telefone = '{{ $('APROVAR: pega resposta').first().json.telefone }}';",
         "options": {}
       },
       "id": "62749e44-c7b7-47c4-be5c-97cf960748c3",
@@ -186,7 +186,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9984,
+        10656,
         2384
       ],
       "credentials": {
@@ -199,7 +199,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE aprovacao_pendente SET status = 'reprovado_aguardando_texto'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status = 'pendente';",
+        "query": "-- Marca a pendência como aguardando o texto correto da SDR.\nUPDATE aprovacao_pendente SET status = 'reprovado_aguardando_texto'\n WHERE id = (\n   SELECT id FROM aprovacao_pendente\n    WHERE status = 'pendente'\n      AND (\n           ('{{ $('Interpreta ação').first().json.quotedId }}' <> '' AND group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}')\n        OR ('{{ $('Interpreta ação').first().json.quotedId }}' = '' AND (SELECT COUNT(*) FROM aprovacao_pendente WHERE status = 'pendente') = 1)\n      )\n    ORDER BY created_at DESC LIMIT 1\n );",
         "options": {}
       },
       "id": "a6b3fcd3-4fb8-4619-a6d3-572a29abb17b",
@@ -207,7 +207,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9296,
+        9968,
         2624
       ],
       "credentials": {
@@ -220,7 +220,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE conversa_status SET status = 'handoff', updated_at = now()\n WHERE telefone = (SELECT telefone FROM aprovacao_pendente WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' LIMIT 1);\nUPDATE aprovacao_pendente SET status = 'concluido'\n WHERE group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}' AND status IN ('pendente','reprovado_aguardando_texto');",
+        "query": "-- Acha a pendência (citada OU a única aberta), põe a conversa em handoff e encerra a pendência.\nUPDATE conversa_status SET status = 'handoff', updated_at = now()\n WHERE telefone = (\n   SELECT telefone FROM aprovacao_pendente\n    WHERE status IN ('pendente','reprovado_aguardando_texto')\n      AND (\n           ('{{ $('Interpreta ação').first().json.quotedId }}' <> '' AND group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}')\n        OR ('{{ $('Interpreta ação').first().json.quotedId }}' = '' AND (SELECT COUNT(*) FROM aprovacao_pendente WHERE status IN ('pendente','reprovado_aguardando_texto')) = 1)\n      )\n    ORDER BY created_at DESC LIMIT 1\n );\n\nUPDATE aprovacao_pendente SET status = 'concluido'\n WHERE id = (\n   SELECT id FROM aprovacao_pendente\n    WHERE status IN ('pendente','reprovado_aguardando_texto')\n      AND (\n           ('{{ $('Interpreta ação').first().json.quotedId }}' <> '' AND group_msg_id = '{{ $('Interpreta ação').first().json.quotedId }}')\n        OR ('{{ $('Interpreta ação').first().json.quotedId }}' = '' AND (SELECT COUNT(*) FROM aprovacao_pendente WHERE status IN ('pendente','reprovado_aguardando_texto')) = 1)\n      )\n    ORDER BY created_at DESC LIMIT 1\n );",
         "options": {}
       },
       "id": "d1be1740-8187-49ea-a14e-868de4878486",
@@ -228,7 +228,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9296,
+        9968,
         2864
       ],
       "credentials": {
@@ -249,7 +249,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9296,
+        9968,
         3104
       ],
       "alwaysOutputData": true,
@@ -271,7 +271,7 @@
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        10896,
+        11568,
         2544
       ],
       "credentials": {
@@ -292,7 +292,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9984,
+        10656,
         3104
       ],
       "credentials": {
@@ -305,8 +305,8 @@
     {
       "parameters": {
         "content": "",
-        "height": 1152,
-        "width": 1984,
+        "height": 1400,
+        "width": 4000,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
@@ -341,7 +341,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        9520,
+        10192,
         2384
       ]
     },
@@ -368,7 +368,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        9520,
+        10192,
         3104
       ]
     },
@@ -383,7 +383,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9744,
+        10416,
         2384
       ],
       "alwaysOutputData": true,
@@ -405,7 +405,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        9744,
+        10416,
         3104
       ],
       "alwaysOutputData": true,
@@ -418,7 +418,7 @@
     },
     {
       "parameters": {
-        "content": "## ✅ Aprovação & Handoff (chamado pelo roteador do webhook)\n\nRecebe a interação da SDR no grupo:\n- **Aprovar** → envia a resposta sugerida ao lead.\n- **Reprovar** → marca 'aguardando texto'; a PRÓXIMA mensagem que a SDR digitar no grupo vira a resposta enviada ao lead.\n- **IA parar de responder** → conversa vira 'handoff' (humano assume; agente não responde mais).\n\n",
+        "content": "## ✅ Aprovação & Handoff (chamado pelo roteador do webhook)\n\nRecebe a interação da SDR no grupo, **por texto ou por áudio**:\n- **Aprovar** → envia a resposta sugerida ao lead.\n- **Reprovar** → marca 'aguardando texto'; a próxima mensagem da SDR vira a resposta enviada ao lead (ou já vem junto: *\"reprovar <texto certo>\"*).\n- **Parar** → conversa vira 'handoff' (humano assume; agente não responde mais).\n\nCom uma pendência aberta, responde solto. Com mais de uma, o fluxo pede para *citar a card*.\n\nA correção que a SDR envia também vira **conhecimento** na base vetorial (`kb_faq`), consultada pelo agente no fluxo 02.\n",
         "height": 320,
         "width": 320,
         "color": "#C2919E"
@@ -431,6 +431,506 @@
       "typeVersion": 1,
       "id": "6a774dbc-295a-4fe6-9a1f-5c005a23c804",
       "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "aud1",
+              "leftValue": "={{ $json.body.audio?.audioUrl || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "kb-aud-if-0001",
+      "name": "Mandou áudio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8448,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.audio.audioUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "kb-aud-dl-0001",
+      "name": "Baixa áudio (grupo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8656,
+        2560
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "=data",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "id": "kb-aud-tr-0001",
+      "name": "Transcreve áudio (grupo)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        9520,
+        2560
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      },
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aud-t1",
+              "name": "transcricao",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kb-aud-set-0001",
+      "name": "Texto do áudio",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        9712,
+        2560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Monta o par que vira conhecimento: a(s) última(s) mensagem(ns) do lead\n-- + a resposta que a IA sugeriu (e foi reprovada, serve de contexto).\n-- A correção escrita/falada pelo humano vem do nó 'Interpreta ação'.\nSELECT p.id                             AS pendencia_id,\n       COALESCE(p.deal_id, '')          AS deal_id,\n       COALESCE(p.telefone, '')         AS telefone,\n       COALESCE(p.resposta_sugerida,'') AS resposta_ia,\n       COALESCE((\n         SELECT string_agg(u.conteudo, E'\\n' ORDER BY u.created_at)\n           FROM (SELECT conteudo, created_at\n                   FROM agente_memoria\n                  WHERE telefone = p.telefone AND role = 'user'\n                  ORDER BY created_at DESC\n                  LIMIT 2) u\n       ), '')                           AS pergunta_lead\n  FROM aprovacao_pendente p\n WHERE p.id = {{ Number($('TEXTO: acha pendência p/ correção').first().json.id) || -1 }};",
+        "options": {}
+      },
+      "id": "kb-sel-0001",
+      "name": "KB: monta par (lead x correção)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        10880,
+        3104
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "kb-v1",
+              "leftValue": "={{ $json.pergunta_lead }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "kb-v2",
+              "leftValue": "={{ $('Interpreta ação').first().json.texto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "kb-if-0001",
+      "name": "KB: par válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        11104,
+        3104
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4-mini",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você transforma correções humanas em CONHECIMENTO para a base de um assistente comercial.\n\nVocê recebe:\n1. MENSAGEM DO LEAD — o assunto que apareceu na conversa.\n2. RESPOSTA SUGERIDA PELA IA — foi REPROVADA, serve só de contexto (pode estar errada, NÃO copie).\n3. RESPOSTA CORRETA (HUMANO) — a fonte da verdade. É isso que deve virar conhecimento.\n\nSua tarefa: escrever UM trecho de conhecimento em texto corrido, afirmativo e autoexplicativo. NÃO é um par pergunta/resposta, NÃO é um diálogo, NÃO é a mensagem pronta para o lead.\n\nRegras:\n- Comece nomeando o assunto e depois o fato/diretriz. Exemplo: \"Negociação e condições comerciais: quando o lead quer negociar valores, condições ou prazos, o assunto é encaminhado ao vendedor responsável, que entra em contato com ele.\"\n- Escreva em terceira pessoa, como uma regra ou fato da empresa. Sem saudação, sem nome do lead, sem telefone, sem número de deal, sem dados pessoais.\n- Inclua no texto as palavras do assunto como o lead falaria, para facilitar a busca semântica depois.\n- 1 a 3 frases. Fiel à RESPOSTA CORRETA (HUMANO); não invente nada que não esteja nela.\n- Se não houver conhecimento reaproveitável (ex.: \"ok\", \"obrigado\", \"vou verificar\", só uma saudação), devolva vazio.\n- Responda SOMENTE com JSON válido, sem markdown: {\"conhecimento\": \"...\"}"
+            },
+            {
+              "content": "=MENSAGEM DO LEAD:\n{{ $json.pergunta_lead }}\n\nRESPOSTA SUGERIDA PELA IA (reprovada, só contexto):\n{{ $json.resposta_ia }}\n\nRESPOSTA CORRETA (HUMANO):\n{{ $('Interpreta ação').first().json.texto }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "kb-llm-0001",
+      "name": "KB: gera conhecimento",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        11328,
+        3104
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      },
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai o trecho de conhecimento gerado pelo LLM e prepara o documento.\nconst j = $input.first().json;\n\nlet node = j.output?.[0]?.content?.[0]?.text\n        ?? j.message?.content\n        ?? j.choices?.[0]?.message?.content\n        ?? j.content ?? j.text ?? j;\n\nlet parsed;\nif (node && typeof node === 'object') {\n  parsed = node;\n} else {\n  const s = String(node ?? '');\n  try { parsed = JSON.parse(s); }\n  catch (e) { const m = s.match(/\\{[\\s\\S]*\\}/); parsed = m ? JSON.parse(m[0]) : {}; }\n}\n\nconst conhecimento = String(parsed.conhecimento || '').trim();\n\n// LLM decidiu que não há conhecimento reaproveitável → não grava nada.\nif (!conhecimento) return [];\n\nconst par = $('KB: monta par (lead x correção)').first().json;\n\nreturn [{ json: {\n  conteudo: conhecimento,\n  deal_id: par.deal_id || '',\n  telefone: par.telefone || '',\n  por_audio: !!$('Interpreta ação').first().json.veioDeAudio,\n  mensagem_lead: par.pergunta_lead || ''\n} }];\n"
+      },
+      "id": "kb-prep-0001",
+      "name": "KB: prepara texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11552,
+        3104
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "kb_faq",
+        "embeddingBatchSize": 200,
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "vectorColumnName": "embedding",
+              "contentColumnName": "text",
+              "metadataColumnName": "metadata"
+            }
+          }
+        }
+      },
+      "id": "kb-store-0001",
+      "name": "KB: grava na base (pgvector)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        11776,
+        3104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "kb-emb-0001",
+      "name": "Embeddings OpenAI (KB)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        11680,
+        3312
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "CRED_OPENAI",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.conteudo }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "deal_id",
+                "value": "={{ $json.deal_id }}"
+              },
+              {
+                "name": "telefone",
+                "value": "={{ $json.telefone }}"
+              },
+              {
+                "name": "origem",
+                "value": "correcao_humana"
+              },
+              {
+                "name": "por_audio",
+                "value": "={{ $json.por_audio }}"
+              },
+              {
+                "name": "mensagem_lead",
+                "value": "={{ $json.mensagem_lead }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "kb-loader-0001",
+      "name": "Documento (conhecimento)",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        11904,
+        3312
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 2000,
+        "chunkOverlap": 0,
+        "options": {}
+      },
+      "id": "kb-split-0001",
+      "name": "Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        12032,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🎙️ Comando por áudio\n\nSe a mensagem no grupo vier como áudio (ptt), ela é baixada do WAHA e transcrita (Whisper, pt).\nA transcrição entra no *Interpreta ação* igual a um texto.\n\nFuncionam por voz: **aprovar** (\"sim\", \"pode mandar\"), **reprovar** (\"não\", \"errado\"), **parar** (\"pausa\", \"assumo\") — ou já falar a **mensagem correta** inteira.\n\nSinônimos curtos só contam como comando se a frase tiver até 4 palavras ou vier com pontuação (\"não, o certo é...\"). Assim uma correção que começa com \"Não temos isso hoje...\" não é confundida com o comando.",
+        "height": 380,
+        "width": 340,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        8416,
+        2080
+      ],
+      "typeVersion": 1,
+      "id": "kb-sticky-0001",
+      "name": "Sticky Audio"
+    },
+    {
+      "parameters": {
+        "content": "## 🧠 Base de conhecimento (pgvector)\n\nQuando um humano manda a **mensagem correta** (texto ou áudio), o par é aprendido:\n\n1. Busca a(s) última(s) mensagem(ns) do lead em `agente_memoria` + a resposta reprovada da IA.\n2. Um LLM transforma isso num **trecho de conhecimento** declarativo (não um par P/R, não a mensagem pronta). Se não houver nada reaproveitável, devolve vazio e nada é gravado.\n3. Embedding (`text-embedding-3-small`) e insert em `kb_faq` via nó PGVector.\n\nO fluxo 02 consulta essa base em toda mensagem do lead. DDL em `sql/kb_faq.sql`.",
+        "height": 380,
+        "width": 340,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        10176,
+        3392
+      ],
+      "typeVersion": 1,
+      "id": "kb-sticky-0002",
+      "name": "Sticky KB"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Quantas pendências estão abertas? Serve para decidir se a SDR precisa\n-- responder CITANDO a card ou se pode responder solto (quando só há uma).\nSELECT\n  (SELECT COUNT(*) FROM aprovacao_pendente WHERE status = 'pendente') AS qtd_pendente,\n  (SELECT COUNT(*) FROM aprovacao_pendente WHERE status IN ('pendente','reprovado_aguardando_texto')) AS qtd_abertas,\n  COALESCE((SELECT string_agg('• deal ' || COALESCE(deal_id, '?'), E'\\n' ORDER BY created_at)\n              FROM aprovacao_pendente\n             WHERE status IN ('pendente','reprovado_aguardando_texto')), '') AS lista;",
+        "options": {}
+      },
+      "id": "kb-cnt-0001",
+      "name": "Conta pendências",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        8784,
+        2752
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CRED_POSTGRES",
+          "name": "Postgres (agente)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "amb1",
+              "leftValue": "={{ $('Interpreta ação').first().json.acao !== '' && $('Interpreta ação').first().json.quotedId === '' && (($('Interpreta ação').first().json.acao === 'parar' ? Number($json.qtd_abertas) : Number($json.qtd_pendente)) > 1) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "kb-amb-0001",
+      "name": "Ambíguo? (precisa citar)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://waha.internal.local/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_WAHA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": {{ JSON.stringify($('Recebe msg do grupo').first().json.body.chatId) }},\n  \"session\": \"waha-session-001\",\n  \"text\": {{ JSON.stringify('⚠️ *Existem ' + ($('Interpreta ação').first().json.acao === 'parar' ? $('Conta pendências').first().json.qtd_abertas : $('Conta pendências').first().json.qtd_pendente) + ' aprovações aguardando.*\\n' + ($('Conta pendências').first().json.lista || '') + '\\n\\nPor favor, *responda citando* a mensagem da card que você quer resolver.') }}\n}",
+        "options": {}
+      },
+      "id": "kb-avc-0001",
+      "name": "Avisa: precisa citar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        9232,
+        2560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "rst1",
+              "leftValue": "={{ $('Interpreta ação').first().json.resto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "kb-vtj-0001",
+      "name": "Veio texto junto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        10192,
+        2624
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 Citar só quando precisa\n\nSe há **uma** pendência aberta, a SDR responde solto (`aprovar`, `não`, ou já a mensagem correta).\nSe há **mais de uma**, responder solto é ambíguo — o fluxo avisa no grupo e pede pra *citar a card*, em vez de adivinhar e mandar a resposta ao lead errado.\n\nO casamento é pelo `group_msg_id`, gravado quando a card foi postada (fluxo 02).\n\nO comando também aceita texto junto: *\"reprovar o valor é sob consulta\"* resolve reprovação e correção numa mensagem só.",
+        "height": 360,
+        "width": 340,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        8752,
+        2080
+      ],
+      "typeVersion": 1,
+      "id": "kb-sticky-0003",
+      "name": "Sticky Citar"
     }
   ],
   "pinData": {
@@ -467,7 +967,7 @@
       "main": [
         [
           {
-            "node": "Interpreta ação",
+            "node": "Mandou áudio?",
             "type": "main",
             "index": 0
           }
@@ -478,7 +978,7 @@
       "main": [
         [
           {
-            "node": "Z-API do remetente (CEO)",
+            "node": "Conta pendências",
             "type": "main",
             "index": 0
           }
@@ -592,6 +1092,197 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Mandou áudio?": {
+      "main": [
+        [
+          {
+            "node": "Baixa áudio (grupo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Interpreta ação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixa áudio (grupo)": {
+      "main": [
+        [
+          {
+            "node": "Transcreve áudio (grupo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcreve áudio (grupo)": {
+      "main": [
+        [
+          {
+            "node": "Texto do áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto do áudio": {
+      "main": [
+        [
+          {
+            "node": "Interpreta ação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEXTO: fecha pendência": {
+      "main": [
+        [
+          {
+            "node": "KB: monta par (lead x correção)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB: monta par (lead x correção)": {
+      "main": [
+        [
+          {
+            "node": "KB: par válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB: par válido?": {
+      "main": [
+        [
+          {
+            "node": "KB: gera conhecimento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB: gera conhecimento": {
+      "main": [
+        [
+          {
+            "node": "KB: prepara texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB: prepara texto": {
+      "main": [
+        [
+          {
+            "node": "KB: grava na base (pgvector)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI (KB)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "KB: grava na base (pgvector)",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Documento (conhecimento)": {
+      "ai_document": [
+        [
+          {
+            "node": "KB: grava na base (pgvector)",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Documento (conhecimento)",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conta pendências": {
+      "main": [
+        [
+          {
+            "node": "Ambíguo? (precisa citar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambíguo? (precisa citar)": {
+      "main": [
+        [
+          {
+            "node": "Avisa: precisa citar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Z-API do remetente (CEO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "REPROVAR: aguarda texto da SDR": {
+      "main": [
+        [
+          {
+            "node": "Veio texto junto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veio texto junto?": {
+      "main": [
+        [
+          {
+            "node": "TEXTO: acha pendência p/ correção",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
