@@ -15,7 +15,7 @@ São 4 workflows que se chamam entre si:
 
 | # | Workflow | Papel |
 |---|----------|-------|
-| 01 | `comercial-01-envio-mensagens-automaticas` | 3 réguas agendadas (pós-apresentação, reaquecer, reaquecer_paçoca) que enfileiram mensagens/áudios de acompanhamento, com marcador anti-duplicidade. |
+| 01 | `comercial-01-envio-mensagens-automaticas` | 3 réguas agendadas que enfileiram mensagens/áudios de acompanhamento, com marcador anti-duplicidade. |
 | 02 | `comercial-02-atendimento-ia-leads` | Núcleo. Recebe a resposta do lead (texto/áudio/imagem), faz *buffer* de mensagens no Redis, **consulta a base de conhecimento (pgvector)**, monta contexto, chama o agente SDR (OpenAI com JSON Schema) e orquestra o envio. |
 | 03 | `comercial-03-aprovacao-handoff` | Revisão humana: aprovar / reprovar (reescrever) / parar (handoff), operada por um grupo de WhatsApp — **por texto ou por áudio**. A correção humana também vira **conhecimento** na base vetorial. |
 | 04 | `comercial-04-notificacoes-vendedor-gestor` | Notifica o vendedor responsável (resumo do lead) e o gestor (somente em reclamação). |
