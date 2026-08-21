@@ -1,0 +1,304 @@
+{
+  "name": "Comercial · Envio de mensagens automáticas - dev",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'pos_apresentacao' AS chave,\n       ISNULL(REPLACE(REPLACE(REPLACE(CONVERT(VARCHAR(5000), t.mensagem), '#nome_cliente#', d.first_name), '#nome_vendedor#', b.first_name), '#deal_id#', CONVERT(VARCHAR, a.id)),'') AS mensagem, t.audio_url\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND t.chave = 'pos_apresentacao'\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('pos_apresentacao'))\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date + CAST(c.due_time AS DATETIME)) BETWEEN GETDATE()-7 AND DATEADD(hh, -2, GETDATE())\n ORDER BY MAX(c.due_date + CAST(c.due_time AS DATETIME)), a.id, t.id;",
+        "options": {}
+      },
+      "id": "5fb1adc3-7795-48e0-85fa-0716b3d1a803",
+      "name": "1. pos_apresentacao - FILA",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -144
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp_deal (origem, destino, user_id, deal_id, chave, mensagem)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'pos_apresentacao' AS chave, '' AS mensagem\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND t.chave = 'pos_apresentacao' AND t.id = 108\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('pos_apresentacao'))\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date + CAST(c.due_time AS DATETIME)) BETWEEN GETDATE()-7 AND DATEADD(hh, -2, GETDATE())\n ORDER BY a.id, t.id;",
+        "options": {}
+      },
+      "id": "02aeb3e0-0469-43b9-ab0a-769b9c72c8fe",
+      "name": "2. pos_apresentacao - MARCADOR",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -144
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'reaquecer' AS chave,\n       ISNULL(REPLACE(REPLACE(REPLACE(CONVERT(VARCHAR(5000), t.mensagem), '#nome_lead#', d.first_name), '#vendedor_nome#', b.first_name), '#deal_id#', CONVERT(VARCHAR, a.id)),'') AS mensagem, t.audio_url\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND t.chave = 'reaquecer'\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('reaquecer'))\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date) BETWEEN GETDATE()-90 AND GETDATE()-7\n ORDER BY a.id, t.id;",
+        "options": {}
+      },
+      "id": "35b3af65-7b71-4f21-a2e3-548f67ffe713",
+      "name": "3. reaquecer - FILA",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        192,
+        112
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp_deal (origem, destino, user_id, deal_id, chave, mensagem)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'reaquecer' AS chave, '' AS mensagem\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND t.chave = 'reaquecer'\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('reaquecer'))\n   AND CONVERT(VARCHAR(100), t.mensagem) <> ''\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date) BETWEEN GETDATE()-90 AND GETDATE()-7\n ORDER BY a.id, t.id;",
+        "options": {}
+      },
+      "id": "96b2fe8f-a89a-4954-b82a-2a394fe33a7f",
+      "name": "4. reaquecer - MARCADOR",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        560,
+        112
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO WHATSAPP (origem, destino, user_id, deal_id, chave, mensagem, audio_url)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'reaquecer_pacoca' AS chave,\n       ISNULL(REPLACE(REPLACE(REPLACE(CONVERT(VARCHAR(5000), t.mensagem), '#nome_lead#', d.first_name), '#vendedor_nome#', b.first_name), '#deal_id#', CONVERT(VARCHAR, a.id)),'') AS mensagem, t.audio_url\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND a.flg_nao_perturbe = 0\n   AND t.chave = 'reaquecer_pacoca'\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('reaquecer_pacoca'))\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date) BETWEEN GETDATE()-120 AND GETDATE()-14\n ORDER BY a.id, t.id;",
+        "options": {}
+      },
+      "id": "5f0c9f7b-8603-4c03-8ea0-6e7067015212",
+      "name": "5. reaquecer_pacoca - FILA",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        192,
+        368
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp_deal (origem, destino, user_id, deal_id, chave, mensagem)\nSELECT 'Comercial' AS origem, d.cellphone1 AS destino, '000000' AS user_id, a.id AS deal_id, 'reaquecer_pacoca' AS chave, '' AS mensagem\n  FROM crm_deal a\n INNER JOIN crm_user b ON a.user_id = b.user_id\n INNER JOIN crm_activity c ON a.id = c.deal_id AND c.type = 'apresentao1' AND c.done = 1\n INNER JOIN crm_person d ON a.person_id = d.id, whatsapp_template t\n WHERE a.add_time >= GETDATE()-360\n   AND a.flg_nao_perturbe = 0\n   AND t.chave = 'reaquecer_pacoca'\n   AND ISNULL(lost_reason, '') NOT IN ('Fucentos', 'Lead duplicado', 'Produto - Sistema não atende', 'Processos - Utiliza sistema próprio')\n   AND a.status <> 'Won'\n   AND LEN(ISNULL(d.cellphone1, '')) = 13\n   AND NOT EXISTS (SELECT 1 FROM whatsapp_deal z WHERE a.id = z.deal_id AND z.chave IN ('reaquecer_pacoca'))\n   AND CONVERT(VARCHAR(100), t.mensagem) <> ''\n GROUP BY a.id, d.cellphone1, d.first_name, a.status, a.lost_reason, b.first_name, CONVERT(VARCHAR(5000), t.mensagem), t.id, t.audio_url\nHAVING MAX(c.due_date) BETWEEN GETDATE()-120 AND GETDATE()-14\n ORDER BY a.id, t.id;",
+        "options": {}
+      },
+      "id": "9a26d2c7-ed52-44aa-8724-6440e0d53e68",
+      "name": "6. reaquecer_pacoca - MARCADOR",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        560,
+        368
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "CRED_MSSQL",
+          "name": "SQL Server (ERP)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9-19 * * *"
+            }
+          ]
+        }
+      },
+      "id": "ab704b6e-4289-4edf-82af-409943034da2",
+      "name": "pós_apresentação",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      },
+      "id": "15bff4a7-17b9-45fe-afa5-5f6a8d81636c",
+      "name": "reaquecer",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 13 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5166509f-bb5d-4e1a-accc-9820a6d3880c",
+      "name": "reaquecer_pacoca",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Envio de Mensagens Automáticas Pós-Reunião (Vendedor - Lead)\n\nEste fluxo verifica automaticamente, em horários definidos, quais leads devem receber um áudio de acompanhamento após a reunião com o vendedor.\n\nSão 3 réguas independentes:\n\n**Pós-apresentação:** de hora em hora (9h–19h): pega o lead ~2h após a reunião.\n**Reaquecer:** todo dia às 10h: leads de 90 a 7 dias atrás.\n**Reaquecer Paçoca:** todo dia às 13h: leads de 120 a 14 dias atrás (respeita o \"não perturbe\").\n\nCada régua faz 2 passos: FILA (enfileira a mensagem) e depois MARCADOR (grava que já enviou, evitando repetição). ",
+        "height": 400,
+        "width": 400,
+        "color": "#C2919E"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -752,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "33daba99-6127-4ce2-b1ff-a2ed903b8e4d",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 800,
+        "width": 1088,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        -208
+      ],
+      "typeVersion": 1,
+      "id": "99acc530-ebae-4d50-be1b-38db5b9c6e06",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. pos_apresentacao - FILA": {
+      "main": [
+        [
+          {
+            "node": "2. pos_apresentacao - MARCADOR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. reaquecer - FILA": {
+      "main": [
+        [
+          {
+            "node": "4. reaquecer - MARCADOR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. reaquecer_pacoca - FILA": {
+      "main": [
+        [
+          {
+            "node": "6. reaquecer_pacoca - MARCADOR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pós_apresentação": {
+      "main": [
+        [
+          {
+            "node": "1. pos_apresentacao - FILA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reaquecer": {
+      "main": [
+        [
+          {
+            "node": "3. reaquecer - FILA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reaquecer_pacoca": {
+      "main": [
+        [
+          {
+            "node": "5. reaquecer_pacoca - FILA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4d7999d1-b753-4261-bff5-4ec46a6421fc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "0eU7kw8BQO1L1Utt",
+  "tags": []
+}
